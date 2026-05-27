@@ -3,68 +3,375 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>OBJ Previewer</title>
+    <title>Asset Library</title>
     <style>
         body {
             margin: 0;
             overflow: hidden;
-            background-color: #1e1e24; /* Dark background so the model pops */
+            background-color: #0d0d12;
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-        }
-
-        #viewer-canvas {
-            width: 100vw;
-            height: 100vh;
-            display: block;
-        }
-
-        .upload-container {
-            position: absolute;
-            bottom: 40px;
-            left: 50%;
-            transform: translateX(-50%);
-            z-index: 10;
-        }
-
-        /* Bubbly, animated button design */
-        .upload-btn {
-            background-color: #ff477e;
             color: white;
-            padding: 16px 32px;
-            border-radius: 50px;
-            font-size: 18px;
-            font-weight: 800;
+            display: flex;
+            flex-direction: column;
+            height: 100vh;
+        }
+
+        #top-bar {
+            padding: 15px 30px;
+            background: rgba(13, 13, 18, 0.8);
+            backdrop-filter: blur(20px);
+            border-bottom: 1px solid rgba(255,255,255,0.05);
+            z-index: 20;
+            display: flex;
+            gap: 15px;
+            align-items: center;
+        }
+
+        .nav-btn {
+            background: transparent;
+            color: white;
+            border: 1px solid rgba(255,255,255,0.2);
+            padding: 10px 24px;
+            border-radius: 20px;
+            font-size: 16px;
+            font-weight: 700;
             cursor: pointer;
-            box-shadow: 0px 8px 20px rgba(255, 71, 126, 0.4);
-            border: none;
+            transition: all 0.2s;
+        }
+
+        .nav-btn.active, .nav-btn:hover {
+            background-color: #ff477e;
+            border-color: #ff477e;
+            box-shadow: 0px 4px 15px rgba(255, 71, 126, 0.4);
+            transform: translateY(-2px);
+        }
+
+        #workspace {
+            flex: 1;
+            position: relative;
+            overflow: hidden;
+        }
+
+        /* GRID VIEW */
+        #grid-view {
+            position: absolute;
+            top: 0; left: 0; right: 0; bottom: 0;
+            padding: 40px;
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+            grid-auto-rows: max-content; /* Forces rows to respect their content height */
+            align-content: start; /* Prevents the grid from squishing rows to fit the screen */
+            gap: 25px;
+            overflow-y: auto;
+            z-index: 15;
+            background-color: #0d0d12;
+            transition: opacity 0.4s ease;
+        }
+
+        .weapon-card {
+            background: linear-gradient(145deg, #1f1f2a, #15151e);
+            border-radius: 20px;
+            overflow: hidden;
+            cursor: pointer;
+            border: 1px solid rgba(255,255,255,0.05);
             transition: all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1);
-            display: inline-block;
+            position: relative;
+            width: 100%;
+            aspect-ratio: 1 / 1;
+            display: flex;
+            align-items: flex-end;
+            justify-content: center;
+        }
+
+        .weapon-card:hover {
+            transform: translateY(-8px) scale(1.02);
+            border-color: #ff477e;
+            box-shadow: 0px 15px 30px rgba(255, 71, 126, 0.2);
+        }
+
+        .card-thumb {
+            position: absolute;
+            top: 0; left: 0; width: 100%; height: 100%;
+            object-fit: contain; 
+            padding: 20px;
+            box-sizing: border-box;
+            z-index: 1;
+            transition: transform 0.3s ease;
+        }
+
+        .weapon-card:hover .card-thumb { transform: scale(1.1); }
+
+        .card-overlay {
+            position: absolute;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background: linear-gradient(to top, rgba(0,0,0,0.9) 0%, rgba(0,0,0,0) 50%);
+            z-index: 2;
+        }
+
+        .card-title {
+            position: relative;
+            z-index: 3;
+            padding: 15px;
+            font-size: 20px;
+            font-weight: 800;
+            width: 100%;
+            text-align: center;
             text-transform: uppercase;
             letter-spacing: 1px;
         }
 
-        .upload-btn:hover {
-            transform: scale(1.1) translateY(-5px);
-            background-color: #ff3366;
-            box-shadow: 0px 15px 25px rgba(255, 71, 126, 0.6);
+        /* DETAIL VIEW */
+        #detail-view {
+            position: absolute;
+            top: 0; left: 0; right: 0; bottom: 0;
+            display: flex;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.4s ease;
+            z-index: 10;
         }
 
-        .upload-btn:active {
-            transform: scale(0.95);
+        #detail-view.active {
+            opacity: 1;
+            pointer-events: all;
         }
 
-        input[type="file"] {
-            display: none;
+        #viewer-container {
+            flex: 1;
+            position: relative;
+            background: radial-gradient(circle at center, #1a1a24 0%, #0d0d12 100%);
         }
+        canvas { width: 100%; height: 100%; display: block; outline: none; }
+
+        /* CAMERA CONTROLS UI */
+        #camera-controls {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            z-index: 20;
+        }
+
+        .cam-btn {
+            background: rgba(20, 20, 28, 0.9);
+            backdrop-filter: blur(20px);
+            border: 1px solid rgba(255,255,255,0.1);
+            color: white;
+            width: 44px;
+            height: 44px;
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            transition: all 0.2s;
+            box-shadow: 0px 5px 15px rgba(0,0,0,0.3);
+        }
+
+        .cam-btn svg { width: 20px; height: 20px; }
+        .cam-btn:hover {
+            background: #ff477e;
+            border-color: #ff477e;
+            transform: translateY(-2px);
+        }
+
+        #sidebar {
+            width: 320px;
+            background: rgba(20, 20, 28, 0.9);
+            backdrop-filter: blur(20px);
+            border-right: 1px solid rgba(255,255,255,0.05);
+            padding: 25px;
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+            overflow-y: auto;
+            transform: translateX(-100%);
+            transition: transform 0.4s cubic-bezier(0.25, 0.8, 0.25, 1);
+            z-index: 20;
+        }
+
+        #detail-view.active #sidebar { transform: translateX(0); }
+
+        .back-btn {
+            background: rgba(255,255,255,0.05);
+            color: white;
+            border: 1px solid rgba(255,255,255,0.1);
+            padding: 12px;
+            border-radius: 12px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        .back-btn:hover { background: #ff477e; border-color: #ff477e; }
+
+        h2 { margin: 0; font-size: 24px; font-weight: 800; color: #ff477e; }
+        h3 { margin: 0; font-size: 14px; text-transform: uppercase; letter-spacing: 1px; color: #888; border-bottom: 1px solid rgba(255,255,255,0.1); padding-bottom: 8px;}
+
+        .list-container { display: flex; flex-direction: column; gap: 8px; }
+        
+        .list-item {
+            background: rgba(0,0,0,0.3);
+            border: 1px solid rgba(255,255,255,0.05);
+            padding: 12px 15px;
+            border-radius: 10px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 600;
+            transition: all 0.2s;
+        }
+
+        .list-item:hover, .list-item.active {
+            background: rgba(255, 71, 126, 0.15);
+            border-color: #ff477e;
+            color: #ff477e;
+        }
+
+        /* ACTION BAR UI */
+        #action-bar {
+            position: absolute;
+            bottom: 40px;
+            left: calc(50% + 160px); 
+            transform: translate(-50%, 150px); 
+            display: flex;
+            gap: 15px;
+            background: rgba(20, 20, 28, 0.9);
+            backdrop-filter: blur(20px);
+            padding: 15px 25px;
+            border-radius: 20px;
+            border: 1px solid rgba(255,255,255,0.05);
+            box-shadow: 0px 15px 35px rgba(0,0,0,0.5);
+            transition: transform 0.4s cubic-bezier(0.25, 0.8, 0.25, 1);
+            z-index: 30;
+        }
+
+        #action-bar.visible { transform: translate(-50%, 0); }
+
+        .action-btn {
+            background: #ff477e;
+            color: white;
+            border: none;
+            padding: 12px 20px;
+            border-radius: 12px;
+            font-size: 15px;
+            font-weight: 700;
+            cursor: pointer;
+            transition: all 0.2s;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .action-btn:hover:not(.disabled) {
+            transform: translateY(-2px);
+            background: #ff2a6d;
+            box-shadow: 0px 5px 15px rgba(255, 71, 126, 0.4);
+        }
+
+        .action-btn.disabled {
+            background: #2a2a35;
+            color: #666;
+            cursor: not-allowed;
+            box-shadow: none;
+        }
+
+        .tooltip-container { position: relative; display: inline-block; }
+
+        .tooltip-text {
+            visibility: hidden;
+            background-color: rgba(10, 10, 15, 0.95);
+            color: #ff477e;
+            text-align: center;
+            padding: 10px 15px;
+            border-radius: 8px;
+            border: 1px solid rgba(255, 71, 126, 0.3);
+            position: absolute;
+            z-index: 1;
+            bottom: 125%;
+            left: 50%;
+            transform: translateX(-50%);
+            opacity: 0;
+            transition: opacity 0.3s;
+            white-space: nowrap;
+            font-size: 13px;
+            font-weight: 700;
+            pointer-events: none;
+            box-shadow: 0px 5px 15px rgba(0,0,0,0.5);
+        }
+
+        .tooltip-container:hover .tooltip-text {
+            visibility: visible;
+            opacity: 1;
+        }
+
+        #toast {
+            position: absolute;
+            top: 30px;
+            left: 50%;
+            transform: translate(-50%, -150px);
+            background: #22c55e;
+            color: white;
+            padding: 15px 30px;
+            border-radius: 30px;
+            font-weight: 800;
+            font-size: 16px;
+            box-shadow: 0px 10px 20px rgba(34, 197, 94, 0.3);
+            transition: transform 0.4s cubic-bezier(0.25, 0.8, 0.25, 1);
+            z-index: 40;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        #toast.show { transform: translate(-50%, 0); }
     </style>
 </head>
 <body>
 
-    <canvas id="viewer-canvas"></canvas>
+    <div id="top-bar">
+        <button class="nav-btn active" onclick="loadCategory('Weapons')">Weapons</button>
+    </div>
 
-    <div class="upload-container">
-        <label for="obj-upload" class="upload-btn">Upload .obj</label>
-        <input type="file" id="obj-upload" accept=".obj">
+    <div id="toast">Action Successful!</div>
+
+    <div id="workspace">
+        <div id="grid-view"></div>
+
+        <div id="detail-view">
+            <div id="sidebar">
+                <button class="back-btn" onclick="closeDetailView()">◄ Back to Grid</button>
+                <h2 id="detail-title">Weapon</h2>
+                <div>
+                    <h3>Skins</h3>
+                    <div id="skins-list" class="list-container"></div>
+                </div>
+                <div>
+                    <h3>Mesh Parts</h3>
+                    <div id="parts-list" class="list-container"></div>
+                </div>
+            </div>
+
+            <div id="action-bar">
+                <button id="btn-download" class="action-btn" onclick="downloadCurrentMesh()">
+                    💾 Download Mesh
+                </button>
+                <div class="tooltip-container">
+                    <button id="btn-copy" class="action-btn" onclick="copyAssetId()">
+                        📋 Copy Asset ID
+                    </button>
+                    <span id="copy-tooltip" class="tooltip-text">There currently is no asset ID for this mesh.</span>
+                </div>
+            </div>
+
+            <div id="viewer-container">
+                <div id="camera-controls">
+                    <button class="cam-btn" onclick="resetCamera()" title="Reset Camera">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"></circle><path d="M3 12h3m12 0h3M12 3v3m0 12v3"></path></svg>
+                    </button>
+                </div>
+                <canvas id="viewer-canvas"></canvas>
+            </div>
+        </div>
     </div>
 
     <script type="importmap">
@@ -79,30 +386,47 @@
     <script type="module">
         import * as THREE from 'three';
         import { OBJLoader } from 'three/addons/loaders/OBJLoader.js';
+        import { OBJExporter } from 'three/addons/exporters/OBJExporter.js';
         import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 
-        // 1. Setup Scene, Camera, and Renderer
+        const repoBaseUrl = 'https://api.github.com/repos/serioustemmie/serioustemmie.github.io/contents';
+        const rawBaseUrl = 'https://raw.githubusercontent.com/serioustemmie/serioustemmie.github.io/main';
+
+        // --- 1. SETUP MAIN VIEWER ---
         const canvas = document.getElementById('viewer-canvas');
         const scene = new THREE.Scene();
-        const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+        const camera = new THREE.PerspectiveCamera(50, 1, 0.1, 1000);
+        const renderer = new THREE.WebGLRenderer({ canvas: canvas, antialias: true, alpha: true });
         
-        const renderer = new THREE.WebGLRenderer({ canvas: canvas, antialias: true });
-        renderer.setSize(window.innerWidth, window.innerHeight);
-        renderer.setPixelRatio(window.devicePixelRatio);
+        scene.add(new THREE.AmbientLight(0xffffff, 0.8));
+        const hemiLight = new THREE.HemisphereLight(0xffffff, 0x444444, 0.8);
+        hemiLight.position.set(0, 20, 0);
+        scene.add(hemiLight);
+        const dirLight = new THREE.DirectionalLight(0xffffff, 0.8);
+        dirLight.position.set(10, 20, 10);
+        scene.add(dirLight);
 
-        // 2. Add Lighting (Crucial for .obj files so they aren't solid black)
-        const ambientLight = new THREE.AmbientLight(0xffffff, 0.6);
-        scene.add(ambientLight);
-        const directionalLight = new THREE.DirectionalLight(0xffffff, 0.8);
-        directionalLight.position.set(10, 20, 10);
-        scene.add(directionalLight);
-
-        // 3. Setup Orbit Controls (Click and drag to look around)
         const controls = new OrbitControls(camera, renderer.domElement);
-        camera.position.z = 5;
-        controls.update();
+        controls.enableDamping = true;
 
-        // Animation Loop
+        const raycaster = new THREE.Raycaster();
+        const mouse = new THREE.Vector2();
+        let selectedMeshUuid = null;
+        let hoveredMeshUuid = null;
+
+        let mouseDownPosition = new THREE.Vector2();
+
+        // --- 2. SETUP SNAPSHOT ENGINE ---
+        const thumbRenderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+        thumbRenderer.setSize(300, 300); 
+        const thumbScene = new THREE.Scene();
+        const thumbCamera = new THREE.PerspectiveCamera(40, 1, 0.1, 1000);
+        
+        thumbScene.add(new THREE.AmbientLight(0xffffff, 1.5));
+        const thumbDir = new THREE.DirectionalLight(0xffffff, 2.0);
+        thumbDir.position.set(10, 20, 20);
+        thumbScene.add(thumbDir);
+
         function animate() {
             requestAnimationFrame(animate);
             controls.update();
@@ -110,50 +434,471 @@
         }
         animate();
 
-        // 4. Handle File Upload and Parsing
-        document.getElementById('obj-upload').addEventListener('change', function(event) {
-            const file = event.target.files[0];
-            if (!file) return;
+        window.addEventListener('resize', () => {
+            const container = document.getElementById('viewer-container');
+            if (container.clientWidth > 0) {
+                renderer.setSize(container.clientWidth, container.clientHeight);
+                camera.aspect = container.clientWidth / container.clientHeight;
+                camera.updateProjectionMatrix();
+            }
+        });
 
-            const reader = new FileReader();
+        // --- 3. UI, GITHUB LOGIC & DATA STATE ---
+        let currentCategory = '';
+        let currentWeapon = '';
+        let currentSkin = '';
+        let loadedModel = null;
+        let originalMaterials = new Map();
+        let currentModelIds = {}; 
 
-            reader.onload = function(e) {
-                const contents = e.target.result;
+        const defaultGreyMaterial = new THREE.MeshStandardMaterial({ 
+            color: 0x909090, 
+            roughness: 0.6,
+            metalness: 0.1,
+            side: THREE.DoubleSide 
+        });
+
+        window.loadCategory = async function(categoryName) {
+            currentCategory = categoryName;
+            const gridView = document.getElementById('grid-view');
+            gridView.innerHTML = '<h3 style="padding: 20px;">Loading Catalog...</h3>';
+
+            try {
+                const response = await fetch(`${repoBaseUrl}/${categoryName}`);
+                const files = await response.json();
                 
-                // Parse the raw text data directly into a 3D object
-                const loader = new OBJLoader();
-                const object = loader.parse(contents);
+                gridView.innerHTML = '';
+                files.forEach(file => {
+                    if (file.type === 'dir') {
+                        const cardId = `thumb-${file.name}`;
+                        const card = document.createElement('div');
+                        card.className = 'weapon-card';
+                        
+                        card.innerHTML = `
+                            <img id="${cardId}" class="card-thumb">
+                            <div class="card-overlay"></div>
+                            <div class="card-title">${file.name}</div>
+                        `;
+                        
+                        card.onclick = () => openWeaponDetail(file.name);
+                        gridView.appendChild(card);
 
-                // Reset the scene
-                scene.clear();
-                scene.add(ambientLight);
-                scene.add(directionalLight);
+                        generateThumbnail(categoryName, file.name, cardId);
+                    }
+                });
+            } catch (error) {
+                gridView.innerHTML = '<h3 style="color:#ff477e;">Failed to load from GitHub.</h3>';
+            }
+        }
 
-                // Center the object in the camera view
-                const box = new THREE.Box3().setFromObject(object);
-                const center = box.getCenter(new THREE.Vector3());
-                object.position.sub(center); // Move object to origin
-                
-                // Add the new model
-                scene.add(object);
+        // --- 4. BULLETPROOF SNAPSHOT GENERATOR ---
+        async function generateThumbnail(category, weaponName, imgId) {
+            const basePath = `${rawBaseUrl}/${category}/${weaponName}/`;
+            const objLoader = new OBJLoader();
+            objLoader.setPath(basePath);
 
-                // Adjust camera distance based on object size
-                const size = box.getSize(new THREE.Vector3());
-                const maxDim = Math.max(size.x, size.y, size.z);
-                camera.position.z = maxDim * 1.5;
-                controls.update();
+            const handleSuccess = function(object) {
+                object.traverse(child => {
+                    if (child.isMesh) child.material = defaultGreyMaterial.clone();
+                });
+                takeSnapshot(object, imgId);
             };
 
-            // .obj files are essentially text files, so we read as text instead of an ArrayBuffer
-            reader.readAsText(file);
+            objLoader.load('Default.obj', handleSuccess, undefined, function() {
+                objLoader.load('default.obj', handleSuccess, undefined, function() {
+                    objLoader.load('preview.obj', handleSuccess, undefined, function() {
+                        console.warn(`Could not find a preview model for ${weaponName}`);
+                    });
+                });
+            });
+        }
+
+        function takeSnapshot(object, imgId) {
+            thumbScene.children = thumbScene.children.filter(c => c.type === 'Light'); 
+            
+            object.rotation.z = -Math.PI / 4; 
+            object.rotation.x = Math.PI / 6;  
+            object.rotation.y = Math.PI / 8;  
+            
+            const box = new THREE.Box3().setFromObject(object);
+            const center = box.getCenter(new THREE.Vector3());
+            object.position.sub(center);
+            thumbScene.add(object);
+            
+            const size = box.getSize(new THREE.Vector3());
+            const maxDim = Math.max(size.x, size.y); 
+            thumbCamera.position.z = maxDim * 1.2; 
+            thumbCamera.lookAt(0,0,0);
+            
+            thumbRenderer.render(thumbScene, thumbCamera);
+            const dataUrl = thumbRenderer.domElement.toDataURL('image/png');
+            
+            const imgElement = document.getElementById(imgId);
+            if (imgElement) {
+                imgElement.src = dataUrl;
+                imgElement.style.opacity = 0;
+                imgElement.style.transition = "opacity 0.4s ease-in-out, transform 0.3s ease";
+                setTimeout(() => imgElement.style.opacity = 1, 50);
+            }
+        }
+
+        // --- 5. ACTION BAR & CAMERA CONTROLS ---
+        let currentPartId = null;
+        let selectedMeshForExport = null;
+
+        window.resetCamera = function() {
+            if (!loadedModel) return;
+            const box = new THREE.Box3().setFromObject(loadedModel);
+            const center = box.getCenter(new THREE.Vector3());
+            const size = box.getSize(new THREE.Vector3());
+            
+            camera.position.set(center.x, center.y, center.z + Math.max(size.x, size.y, size.z) * 1.5);
+            controls.target.copy(center);
+            controls.update();
+        }
+
+        function triggerActionBar(mesh) {
+            selectedMeshForExport = mesh;
+            const actionBar = document.getElementById('action-bar');
+            const btnDownload = document.getElementById('btn-download');
+            const btnCopy = document.getElementById('btn-copy');
+            const tooltip = document.getElementById('copy-tooltip');
+            
+            btnDownload.classList.remove('disabled');
+            
+            const foundId = currentModelIds[mesh.name];
+            
+            if (foundId) {
+                currentPartId = foundId;
+                btnCopy.classList.remove('disabled');
+                tooltip.style.display = 'none'; 
+            } else {
+                currentPartId = null;
+                btnCopy.classList.add('disabled');
+                tooltip.style.display = 'block';
+                tooltip.innerText = "There currently is no asset ID for this mesh.";
+            }
+
+            actionBar.classList.add('visible');
+        }
+
+        function hideActionBar() {
+            document.getElementById('action-bar').classList.remove('visible');
+            selectedMeshForExport = null;
+        }
+
+        window.downloadCurrentMesh = function() {
+            if (!selectedMeshForExport) return;
+            const exporter = new OBJExporter();
+            const objText = exporter.parse(selectedMeshForExport);
+            const filename = (selectedMeshForExport.name || 'mesh') + '.obj';
+
+            const blob = new Blob([objText], { type: 'text/plain' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = filename;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+            showToast("Mesh Downloaded!");
+        }
+
+        window.copyAssetId = function() {
+            if (!currentPartId) return;
+            navigator.clipboard.writeText(currentPartId).then(() => {
+                showToast("Roblox Asset ID Copied!");
+            });
+        }
+
+        function showToast(message) {
+            const toast = document.getElementById('toast');
+            toast.innerText = message;
+            toast.classList.add('show');
+            setTimeout(() => toast.classList.remove('show'), 3000);
+        }
+
+        window.selectMesh = function(uuid) {
+            selectedMeshUuid = uuid;
+            updateMaterials();
+
+            const partsList = document.getElementById('parts-list');
+            Array.from(partsList.children).forEach(c => c.classList.remove('active'));
+            
+            if (uuid === null) {
+                partsList.children[0].classList.add('active'); 
+                hideActionBar();
+            } else {
+                const activeBtn = Array.from(partsList.children).find(c => c.dataset.uuid === uuid);
+                if (activeBtn) {
+                    activeBtn.classList.add('active');
+                    activeBtn.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+                }
+            }
+        }
+
+        function updateMaterials() {
+            if (!loadedModel) return;
+
+            loadedModel.traverse(function(child) {
+                if (child.isMesh && originalMaterials.has(child.uuid)) {
+                    child.material = originalMaterials.get(child.uuid).clone();
+                    
+                    if (child.uuid === selectedMeshUuid) {
+                        child.material.emissive = new THREE.Color(0xff477e);
+                        child.material.emissiveIntensity = 0.6;
+                        child.material.transparent = false;
+                        child.material.opacity = 1.0;
+                    } 
+                    else if (child.uuid === hoveredMeshUuid) {
+                        child.material.emissive = new THREE.Color(0xffffff);
+                        child.material.emissiveIntensity = 0.3;
+                        child.material.transparent = false;
+                        child.material.opacity = 1.0;
+                    } 
+                    else if (selectedMeshUuid !== null) {
+                        child.material.transparent = true;
+                        child.material.opacity = 0.3;
+                    }
+                }
+            });
+        }
+
+        // --- RAYCASTING EVENT LISTENERS ---
+        renderer.domElement.addEventListener('mousemove', (event) => {
+            if (!loadedModel) return;
+            
+            const rect = renderer.domElement.getBoundingClientRect();
+            mouse.x = ((event.clientX - rect.left) / rect.width) * 2 - 1;
+            mouse.y = -((event.clientY - rect.top) / rect.height) * 2 + 1;
+
+            raycaster.setFromCamera(mouse, camera);
+            const intersects = raycaster.intersectObject(loadedModel, true);
+
+            if (intersects.length > 0) {
+                const object = intersects[0].object;
+                if (hoveredMeshUuid !== object.uuid) {
+                    hoveredMeshUuid = object.uuid;
+                    renderer.domElement.style.cursor = 'pointer';
+                    updateMaterials();
+                }
+            } else {
+                if (hoveredMeshUuid !== null) {
+                    hoveredMeshUuid = null;
+                    renderer.domElement.style.cursor = 'default';
+                    updateMaterials();
+                }
+            }
         });
 
-        // Handle window resizing
-        window.addEventListener('resize', () => {
-            renderer.setSize(window.innerWidth, window.innerHeight);
-            camera.aspect = window.innerWidth / window.innerHeight;
-            camera.updateProjectionMatrix();
+        renderer.domElement.addEventListener('pointerdown', (event) => {
+            mouseDownPosition.set(event.clientX, event.clientY);
         });
+
+        renderer.domElement.addEventListener('pointerup', (event) => {
+            if (!loadedModel) return;
+
+            const currentPosition = new THREE.Vector2(event.clientX, event.clientY);
+            const deltaMove = currentPosition.distanceTo(mouseDownPosition);
+
+            if (deltaMove > 5) return;
+
+            const rect = renderer.domElement.getBoundingClientRect();
+            mouse.x = ((event.clientX - rect.left) / rect.width) * 2 - 1;
+            mouse.y = -((event.clientY - rect.top) / rect.height) * 2 + 1;
+
+            raycaster.setFromCamera(mouse, camera);
+            const intersects = raycaster.intersectObject(loadedModel, true);
+
+            if (intersects.length > 0) {
+                const object = intersects[0].object;
+                selectMesh(object.uuid);
+                triggerActionBar(object);
+            } else {
+                selectMesh(null);
+            }
+        });
+
+        // --- 6. RAW TEXT PARSER ---
+        function extractIdsFromOBJ(text) {
+            let currentGroup = null;
+            const lines = text.split('\n');
+            
+            for (let line of lines) {
+                line = line.trim();
+                
+                if (line.startsWith('g ') || line.startsWith('o ')) {
+                    currentGroup = line.substring(2).trim();
+                } 
+                else if (line.startsWith('#') && currentGroup) {
+                    const potentialId = line.substring(1).trim();
+                    if (/^\d{7,}$/.test(potentialId)) {
+                        currentModelIds[currentGroup] = potentialId;
+                    }
+                    currentGroup = null; 
+                }
+            }
+        }
+
+        // --- 7. MAIN DETAIL VIEWER ---
+        window.openWeaponDetail = async function(weaponName) {
+            currentWeapon = weaponName;
+            document.getElementById('detail-title').innerText = weaponName;
+            
+            document.getElementById('grid-view').style.opacity = '0';
+            setTimeout(() => {
+                document.getElementById('grid-view').style.display = 'none';
+                document.getElementById('detail-view').classList.add('active');
+                window.dispatchEvent(new Event('resize'));
+            }, 400);
+
+            const skinsList = document.getElementById('skins-list');
+            skinsList.innerHTML = 'Loading...';
+            hideActionBar();
+            
+            try {
+                const response = await fetch(`${repoBaseUrl}/${currentCategory}/${weaponName}`);
+                const files = await response.json();
+                
+                skinsList.innerHTML = '';
+                let targetSkin = null;
+                let foundDefault = false;
+
+                files.forEach(file => {
+                    if (file.name.toLowerCase().endsWith('.obj')) {
+                        const skinName = file.name.substring(0, file.name.length - 4); 
+                        if (skinName.toLowerCase() === 'default') foundDefault = true;
+                        
+                        const btn = document.createElement('div');
+                        btn.className = 'list-item';
+                        btn.innerText = skinName;
+                        btn.onclick = (e) => {
+                            Array.from(skinsList.children).forEach(c => c.classList.remove('active'));
+                            e.target.classList.add('active');
+                            currentSkin = skinName;
+                            load3DModel(skinName);
+                        };
+                        skinsList.appendChild(btn);
+                    }
+                });
+
+                if (skinsList.children.length > 0) {
+                    if (foundDefault) {
+                        Array.from(skinsList.children).forEach(c => {
+                            if (c.innerText.toLowerCase() === 'default') {
+                                c.classList.add('active');
+                                targetSkin = c.innerText;
+                            }
+                        });
+                    } else {
+                        targetSkin = skinsList.children[0].innerText;
+                        skinsList.children[0].classList.add('active');
+                    }
+                    currentSkin = targetSkin;
+                    load3DModel(targetSkin);
+                } else {
+                    skinsList.innerHTML = '<span style="color:#aaa;">No .obj skins found.</span>';
+                }
+
+            } catch (error) {
+                skinsList.innerHTML = 'Error loading skins.';
+            }
+        }
+
+        window.closeDetailView = function() {
+            document.getElementById('detail-view').classList.remove('active');
+            hideActionBar();
+            setTimeout(() => {
+                document.getElementById('grid-view').style.display = 'grid';
+                void document.getElementById('grid-view').offsetWidth; 
+                document.getElementById('grid-view').style.opacity = '1';
+                
+                scene.children = scene.children.filter(child => child.type === 'Light');
+                loadedModel = null;
+                selectedMeshUuid = null;
+            }, 400);
+        }
+
+        window.load3DModel = async function(skinName) {
+            scene.children = scene.children.filter(child => child.type === 'Light');
+            document.getElementById('parts-list').innerHTML = 'Loading geometry...';
+            originalMaterials.clear();
+            loadedModel = null;
+            selectedMeshUuid = null;
+            currentModelIds = {}; 
+            hideActionBar();
+
+            const basePath = `${rawBaseUrl}/${currentCategory}/${currentWeapon}/`;
+            const objFilename = `${skinName}.obj`;
+
+            try {
+                const res = await fetch(basePath + objFilename);
+                if (res.ok) {
+                    const text = await res.text();
+                    extractIdsFromOBJ(text);
+                }
+            } catch(e) {
+                console.warn("Failed to fetch raw OBJ for ID parsing");
+            }
+
+            const objLoader = new OBJLoader();
+            objLoader.setPath(basePath);
+            objLoader.load(objFilename, function(object) {
+                object.traverse(child => {
+                    if (child.isMesh) child.material = defaultGreyMaterial.clone();
+                });
+                processLoadedModel(object);
+            });
+        }
+
+        function processLoadedModel(object) {
+            loadedModel = object;
+            const partsList = document.getElementById('parts-list');
+            partsList.innerHTML = '';
+            
+            const fullBtn = document.createElement('div');
+            fullBtn.className = 'list-item active';
+            fullBtn.innerText = 'Whole Weapon (Reset)';
+            fullBtn.dataset.uuid = 'all'; 
+            fullBtn.onclick = (e) => {
+                selectMesh(null);
+                resetCamera();
+            };
+            partsList.appendChild(fullBtn);
+
+            let partCount = 0;
+            object.traverse(function(child) {
+                if (child.isMesh) {
+                    partCount++;
+                    originalMaterials.set(child.uuid, child.material.clone());
+
+                    const meshName = child.name || `MeshPart_${partCount}`;
+                    const btn = document.createElement('div');
+                    btn.className = 'list-item';
+                    
+                    btn.dataset.uuid = child.uuid;
+                    
+                    const cleanName = meshName.split('_')[0];
+                    btn.innerText = cleanName;
+                    
+                    btn.onclick = (e) => {
+                        selectMesh(child.uuid);
+                        triggerActionBar(child); 
+                    };
+                    partsList.appendChild(btn);
+                }
+            });
+
+            const box = new THREE.Box3().setFromObject(object);
+            const center = box.getCenter(new THREE.Vector3());
+            object.position.sub(center);
+            scene.add(object);
+            
+            resetCamera();
+        }
+        
+        window.loadCategory('Weapons');
     </script>
 </body>
 </html>
