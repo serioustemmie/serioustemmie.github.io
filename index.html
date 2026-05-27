@@ -1,1 +1,159 @@
-<b> hi </b>
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>OBJ Previewer</title>
+    <style>
+        body {
+            margin: 0;
+            overflow: hidden;
+            background-color: #1e1e24; /* Dark background so the model pops */
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+
+        #viewer-canvas {
+            width: 100vw;
+            height: 100vh;
+            display: block;
+        }
+
+        .upload-container {
+            position: absolute;
+            bottom: 40px;
+            left: 50%;
+            transform: translateX(-50%);
+            z-index: 10;
+        }
+
+        /* Bubbly, animated button design */
+        .upload-btn {
+            background-color: #ff477e;
+            color: white;
+            padding: 16px 32px;
+            border-radius: 50px;
+            font-size: 18px;
+            font-weight: 800;
+            cursor: pointer;
+            box-shadow: 0px 8px 20px rgba(255, 71, 126, 0.4);
+            border: none;
+            transition: all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1);
+            display: inline-block;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .upload-btn:hover {
+            transform: scale(1.1) translateY(-5px);
+            background-color: #ff3366;
+            box-shadow: 0px 15px 25px rgba(255, 71, 126, 0.6);
+        }
+
+        .upload-btn:active {
+            transform: scale(0.95);
+        }
+
+        input[type="file"] {
+            display: none;
+        }
+    </style>
+</head>
+<body>
+
+    <canvas id="viewer-canvas"></canvas>
+
+    <div class="upload-container">
+        <label for="obj-upload" class="upload-btn">Upload .obj</label>
+        <input type="file" id="obj-upload" accept=".obj">
+    </div>
+
+    <script type="importmap">
+        {
+            "imports": {
+                "three": "https://unpkg.com/three@0.160.0/build/three.module.js",
+                "three/addons/": "https://unpkg.com/three@0.160.0/examples/jsm/"
+            }
+        }
+    </script>
+
+    <script type="module">
+        import * as THREE from 'three';
+        import { OBJLoader } from 'three/addons/loaders/OBJLoader.js';
+        import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+
+        // 1. Setup Scene, Camera, and Renderer
+        const canvas = document.getElementById('viewer-canvas');
+        const scene = new THREE.Scene();
+        const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+        
+        const renderer = new THREE.WebGLRenderer({ canvas: canvas, antialias: true });
+        renderer.setSize(window.innerWidth, window.innerHeight);
+        renderer.setPixelRatio(window.devicePixelRatio);
+
+        // 2. Add Lighting (Crucial for .obj files so they aren't solid black)
+        const ambientLight = new THREE.AmbientLight(0xffffff, 0.6);
+        scene.add(ambientLight);
+        const directionalLight = new THREE.DirectionalLight(0xffffff, 0.8);
+        directionalLight.position.set(10, 20, 10);
+        scene.add(directionalLight);
+
+        // 3. Setup Orbit Controls (Click and drag to look around)
+        const controls = new OrbitControls(camera, renderer.domElement);
+        camera.position.z = 5;
+        controls.update();
+
+        // Animation Loop
+        function animate() {
+            requestAnimationFrame(animate);
+            controls.update();
+            renderer.render(scene, camera);
+        }
+        animate();
+
+        // 4. Handle File Upload and Parsing
+        document.getElementById('obj-upload').addEventListener('change', function(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+
+            const reader = new FileReader();
+
+            reader.onload = function(e) {
+                const contents = e.target.result;
+                
+                // Parse the raw text data directly into a 3D object
+                const loader = new OBJLoader();
+                const object = loader.parse(contents);
+
+                // Reset the scene
+                scene.clear();
+                scene.add(ambientLight);
+                scene.add(directionalLight);
+
+                // Center the object in the camera view
+                const box = new THREE.Box3().setFromObject(object);
+                const center = box.getCenter(new THREE.Vector3());
+                object.position.sub(center); // Move object to origin
+                
+                // Add the new model
+                scene.add(object);
+
+                // Adjust camera distance based on object size
+                const size = box.getSize(new THREE.Vector3());
+                const maxDim = Math.max(size.x, size.y, size.z);
+                camera.position.z = maxDim * 1.5;
+                controls.update();
+            };
+
+            // .obj files are essentially text files, so we read as text instead of an ArrayBuffer
+            reader.readAsText(file);
+        });
+
+        // Handle window resizing
+        window.addEventListener('resize', () => {
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+        });
+    </script>
+</body>
+</html>
