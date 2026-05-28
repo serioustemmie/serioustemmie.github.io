@@ -1,2 +1,7 @@
 Default:
     Shoot: 13010911854
+    Inspect: 13010893629
+    Reload: 13010900962
+    Sprint: 13010904196
+    Idle: 13010885336
+    Equip: 13010870236
