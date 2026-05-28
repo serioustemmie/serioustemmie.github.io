@@ -284,6 +284,7 @@
             transition: all 0.2s cubic-bezier(0.25, 0.8, 0.25, 1);
             position: relative;
             overflow: hidden;
+            flex-shrink: 0; /* FIXED: Prevents items from getting squished! */
         }
 
         .list-item:hover {
@@ -434,7 +435,7 @@
             position: absolute;
             bottom: 60px;
             right: 0;
-            width: 210px; 
+            width: 260px; 
             background: rgba(18, 18, 24, 0.95);
             backdrop-filter: blur(25px);
             border: 1px solid rgba(255,255,255,0.1);
@@ -515,7 +516,7 @@
             color: white;
             border-right-color: #ff477e;
             background: rgba(255,255,255,0.02);
-            transform: translateX(0); /* Sub items shouldn't shift as much */
+            transform: translateX(0); 
         }
 
         .tooltip-container { position: relative; display: inline-block; }
@@ -854,38 +855,36 @@
 
         // --- OTHER ASSETS WIDGET LOGIC ---
 
-function parseAssetTxt(text) {
-    const result = {};
-    let currentSkinContext = null;
-    const lines = text.split('\n');
-    
-    for (let line of lines) {
-        if (line.trim() === '') continue;
-        
-        // UPGRADED: Uses Regex to catch ALL types of whitespace (including non-breaking spaces)
-        if (/^\s+/.test(line)) {
-            if (currentSkinContext) {
-                const parts = line.split(':');
-                if (parts.length >= 2) {
-                    const originalName = parts[0].trim();
-                    const id = parts.slice(1).join(':').trim(); 
-                    
-                    const groupName = originalName.replace(/\s*\d+$/, '').trim();
+        function parseAssetTxt(text) {
+            const result = {};
+            let currentSkinContext = null;
+            const lines = text.split('\n');
+            
+            for (let line of lines) {
+                if (line.trim() === '') continue;
+                
+                if (/^\s+/.test(line)) {
+                    if (currentSkinContext) {
+                        const parts = line.split(':');
+                        if (parts.length >= 2) {
+                            const originalName = parts[0].trim();
+                            const id = parts.slice(1).join(':').trim(); 
+                            
+                            const groupName = originalName.replace(/\s*\d+$/, '').trim();
 
-                    if (!result[currentSkinContext][groupName]) {
-                        result[currentSkinContext][groupName] = [];
+                            if (!result[currentSkinContext][groupName]) {
+                                result[currentSkinContext][groupName] = [];
+                            }
+                            result[currentSkinContext][groupName].push({ name: originalName, id: id });
+                        }
                     }
-                    result[currentSkinContext][groupName].push({ name: originalName, id: id });
+                } else {
+                    currentSkinContext = line.replace(':', '').trim();
+                    result[currentSkinContext] = {};
                 }
             }
-        } else {
-            // It's a Skin Header (e.g. "Default:")
-            currentSkinContext = line.replace(':', '').trim();
-            result[currentSkinContext] = {};
+            return result;
         }
-    }
-    return result;
-}
 
         window.toggleOtherAssetsMenu = function() {
             const panel = document.getElementById('other-assets-panel');
@@ -928,7 +927,6 @@ function parseAssetTxt(text) {
                 
                 for (const [groupName, assets] of Object.entries(skinAssets)) {
                     if (assets.length === 1) {
-                        // Standard single item
                         const item = document.createElement('div');
                         item.className = 'list-item';
                         item.innerText = `${assets[0].name} (${assets[0].id})`;
@@ -939,7 +937,6 @@ function parseAssetTxt(text) {
                         };
                         list.appendChild(item);
                     } else {
-                        // Create Accordion Group
                         const groupContainer = document.createElement('div');
                         groupContainer.style.display = 'flex';
                         groupContainer.style.flexDirection = 'column';
@@ -950,7 +947,7 @@ function parseAssetTxt(text) {
                         groupHeader.innerHTML = `<span style="color:#aaa; font-size: 11px; margin-right: 5px;">(${assets.length} IDs) ▼</span> ${groupName}`;
 
                         const subList = document.createElement('div');
-                        subList.style.display = 'none'; // Hidden by default
+                        subList.style.display = 'none'; 
                         subList.style.flexDirection = 'column';
                         subList.style.gap = '2px';
 
@@ -965,7 +962,7 @@ function parseAssetTxt(text) {
                             subItem.className = 'list-item sub-item';
                             subItem.innerText = `${asset.name} (${asset.id})`;
                             subItem.onclick = (e) => {
-                                e.stopPropagation(); // Stop click from closing the accordion
+                                e.stopPropagation(); 
                                 navigator.clipboard.writeText(asset.id).then(() => {
                                     showToast(`${asset.name} ID Copied!`);
                                 });
