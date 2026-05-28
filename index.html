@@ -854,38 +854,38 @@
 
         // --- OTHER ASSETS WIDGET LOGIC ---
 
-        function parseAssetTxt(text) {
-            const result = {};
-            let currentSkinContext = null;
-            const lines = text.split('\n');
-            
-            for (let line of lines) {
-                if (line.trim() === '') continue;
-                
-                if (line.startsWith(' ') || line.startsWith('\t')) {
-                    if (currentSkinContext) {
-                        const parts = line.split(':');
-                        if (parts.length >= 2) {
-                            const originalName = parts[0].trim();
-                            const id = parts.slice(1).join(':').trim(); 
-                            
-                            // Regex strips any trailing numbers (and spaces) to find the group name
-                            const groupName = originalName.replace(/\s*\d+$/, '').trim();
+function parseAssetTxt(text) {
+    const result = {};
+    let currentSkinContext = null;
+    const lines = text.split('\n');
+    
+    for (let line of lines) {
+        if (line.trim() === '') continue;
+        
+        // UPGRADED: Uses Regex to catch ALL types of whitespace (including non-breaking spaces)
+        if (/^\s+/.test(line)) {
+            if (currentSkinContext) {
+                const parts = line.split(':');
+                if (parts.length >= 2) {
+                    const originalName = parts[0].trim();
+                    const id = parts.slice(1).join(':').trim(); 
+                    
+                    const groupName = originalName.replace(/\s*\d+$/, '').trim();
 
-                            if (!result[currentSkinContext][groupName]) {
-                                result[currentSkinContext][groupName] = [];
-                            }
-                            // Push into the group array
-                            result[currentSkinContext][groupName].push({ name: originalName, id: id });
-                        }
+                    if (!result[currentSkinContext][groupName]) {
+                        result[currentSkinContext][groupName] = [];
                     }
-                } else {
-                    currentSkinContext = line.replace(':', '').trim();
-                    result[currentSkinContext] = {};
+                    result[currentSkinContext][groupName].push({ name: originalName, id: id });
                 }
             }
-            return result;
+        } else {
+            // It's a Skin Header (e.g. "Default:")
+            currentSkinContext = line.replace(':', '').trim();
+            result[currentSkinContext] = {};
         }
+    }
+    return result;
+}
 
         window.toggleOtherAssetsMenu = function() {
             const panel = document.getElementById('other-assets-panel');
