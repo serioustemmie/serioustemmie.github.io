@@ -1,2 +1,11 @@
 Default:
     Shoot: 13087362838
+    Reload1: 13158735106
+    Reload2: 13236549929
+    Reload3: 13236549962
+    Reload4: 13455395017
+    Reload5: 13455395017
+    Inspect1: 13236549929
+    Inspect2: 13236549962
+    Inspect3: 13455395017
+    Inspect4: 13455395017
